@@ -1,0 +1,24 @@
+# Blueprint de Render (plan gratuito). La base de datos va aparte: Neon o Supabase tienen Postgres gratuito.
+services:
+  - type: web
+    name: deploymenthub-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL # cadena de conexión de Neon/Supabase (con sslmode=require)
+        sync: false
+      - key: JWT_KEY
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS # URL pública del frontend, ej. https://deploymenthub.vercel.app
+        sync: false
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
