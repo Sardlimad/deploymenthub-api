@@ -9,6 +9,7 @@ from app import repositories as repo
 from app.config import Settings
 from app.domain.exceptions import UnauthorizedException, ValidationException
 from app.models import User
+from app.notifications import templates
 from app.notifications.email import EmailSender
 from app.schemas import (
     AuthUserDto,
@@ -115,6 +116,7 @@ def request_recovery(db: Session, email_sender: EmailSender, body: RequestRecove
         "DeploymentHub: código para restablecer tu contraseña",
         f"Hola {user.name}:\n\nTu código es {code}. Vence en {minutes} minutos.\n\n"
         "Si no lo pediste, ignora este correo; tu contraseña no cambia.",
+        templates.recovery_code_email(user.name, code, minutes),
     )
 
 

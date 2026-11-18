@@ -102,8 +102,8 @@ def test_los_cambios_de_una_solicitud_enviada_avisan_por_correo(client, admin, d
     from app.notifications.email import EmailSender
     from tests.test_api import _id, _post, _setup_catalog
 
-    sent: list[tuple[str, str, str]] = []
-    monkeypatch.setattr(EmailSender, "send", lambda self, to, subject, body: sent.append((to, subject, body)))
+    sent: list[tuple[str, str, str, str | None]] = []
+    monkeypatch.setattr(EmailSender, "send", lambda self, to, subject, body, html=None: sent.append((to, subject, body, html)))
 
     product, env, pe, clients, installations = _setup_catalog(client, admin, "N")
     package = _post(client, developer, "/api/deploymentpackages", productId=product, description="Paquete N", artifacts=[{"type": "Table", "code": "t"}]).json()
@@ -115,9 +115,11 @@ def test_los_cambios_de_una_solicitud_enviada_avisan_por_correo(client, admin, d
     while not sent and time.time() < deadline:
         time.sleep(0.1)
 
-    recipients = {to for to, _, _ in sent}
+    recipients = {to for to, _, _, _ in sent}
     # Admin e Infra reciben el aviso; el desarrollador que hizo el cambio no.
     assert "admin@test.local" in recipients and "infra@test.local" in recipients and "dev@test.local" not in recipients
     subject = sent[0][1]
     assert subject.endswith("enviada, pendiente de aplicar") and subject.startswith("[DeploymentHub] DR-")
     assert "Paquete N" in sent[0][2] and "Developer la envió a 1 cliente." in sent[0][2]
+    html = sent[0][3]
+    assert html and "<html" in html and "Paquete N" in html and "Developer la envió a 1 cliente." in html

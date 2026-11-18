@@ -19,12 +19,12 @@ class EmailSender:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    def send(self, to: str, subject: str, body: str) -> None:
+    def send(self, to: str, subject: str, body: str, html: str | None = None) -> None:
         """Envía y absorbe cualquier fallo: la respuesta al usuario no debe revelar si el correo existe
         o si falló el envío."""
         s = self._settings
         if s.webhook_configured:  # tiene prioridad: es lo que funciona donde SMTP está bloqueado
-            self._send_webhook(to, subject, body)
+            self._send_webhook(to, subject, body, html)
             return
         if not s.smtp_configured:
             if s.is_development:
@@ -42,6 +42,8 @@ class EmailSender:
         message["To"] = to
         message["Subject"] = subject
         message.set_content(body)
+        if html:
+            message.add_alternative(html, subtype="html")
         try:
             with smtplib.SMTP(s.email_host, s.email_port, timeout=20) as client:
                 client.ehlo()
@@ -54,12 +56,12 @@ class EmailSender:
         except Exception:  # noqa: BLE001
             logger.exception("No se pudo enviar el correo a %s.", to)
 
-    def _send_webhook(self, to: str, subject: str, body: str) -> None:
+    def _send_webhook(self, to: str, subject: str, body: str, html: str | None) -> None:
         """POST JSON {secret, to, subject, body} al webhook. Google Apps Script responde con una redirección
         (302) hacia el resultado; urllib la sigue, y el envío ya se ejecutó en el primer POST."""
         s = self._settings
         payload = json.dumps(
-            {"secret": s.email_webhook_secret, "to": to, "subject": subject, "body": body}
+            {"secret": s.email_webhook_secret, "to": to, "subject": subject, "body": body, "html": html}
         ).encode("utf-8")
         request = urllib.request.Request(
             s.email_webhook_url.strip(), data=payload, method="POST",
@@ -73,6 +75,6 @@ class EmailSender:
         except Exception:  # noqa: BLE001
             logger.exception("No se pudo enviar el correo a %s por webhook.", to)
 
-    def send_in_background(self, to: str, subject: str, body: str) -> None:
+    def send_in_background(self, to: str, subject: str, body: str, html: str | None = None) -> None:
         """Para correos disparados desde una petición: la respuesta no espera al SMTP."""
-        threading.Thread(target=self.send, args=(to, subject, body), daemon=True, name="email-send").start()
+        threading.Thread(target=self.send, args=(to, subject, body, html), daemon=True, name="email-send").start()

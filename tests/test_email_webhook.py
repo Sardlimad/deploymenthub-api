@@ -32,10 +32,10 @@ def test_webhook_envia_json_con_secreto():
             email_webhook_url=f"http://127.0.0.1:{server.server_port}/exec", email_webhook_secret="clave",
             _env_file=None,
         )
-        EmailSender(settings).send("a@b.com", "Asunto", "Cuerpo")
+        EmailSender(settings).send("a@b.com", "Asunto", "Cuerpo", "<p>Hola</p>")
     finally:
         server.shutdown()
-    assert received == [{"secret": "clave", "to": "a@b.com", "subject": "Asunto", "body": "Cuerpo"}]
+    assert received == [{"secret": "clave", "to": "a@b.com", "subject": "Asunto", "body": "Cuerpo", "html": "<p>Hola</p>"}]
 
 
 def test_webhook_caido_no_lanza_excepcion():

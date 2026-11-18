@@ -12,6 +12,7 @@ from enum import Enum
 from app.domain import roles as role_names
 from app.domain.enums import DeploymentRequestStatus as R
 from app.domain.enums import DeploymentRequestTargetStatus as T
+from app.notifications import templates
 
 
 class ChangeKind(str, Enum):
@@ -65,6 +66,7 @@ class DeploymentEmail:
     to: NotifiedUser
     subject: str
     body: str
+    html: str | None = None
 
 
 def recipients(
@@ -105,10 +107,15 @@ def compose(
         return names.get(id, "Alguien") if id is not None else "Alguien"
 
     subject = f"[DeploymentHub] {request.display_number} · {_title(request, changes)}"
-    lines = [_line(request, c, who(c.actor_id)) for c in sorted(changes, key=lambda c: c.occurred_at)]
+    ordered = sorted(changes, key=lambda c: c.occurred_at)
+    items = [_item(request, c, who(c.actor_id)) for c in ordered]
+    lines = [_format_line(i) for i in items]
     link = f"{public_url.rstrip('/')}/deployments/{request.id}" if public_url and public_url.strip() else None
     recipient_list = recipients(request, users, [c.actor_id for c in changes])
-    return [DeploymentEmail(u, subject, _body(request, lines, link, u)) for u in recipient_list]
+    return [
+        DeploymentEmail(u, subject, _body(request, lines, link, u), _html(request, items, link, u))
+        for u in recipient_list
+    ]
 
 
 def _title(request: NotifiedRequest, changes: Sequence[DeploymentChange]) -> str:
@@ -124,20 +131,42 @@ def _title(request: NotifiedRequest, changes: Sequence[DeploymentChange]) -> str
     return f"{len(changes)} cambios · {request_label(request.status).lower()}"
 
 
-def _line(request: NotifiedRequest, c: DeploymentChange, actor: str) -> str:
+def _item(request: NotifiedRequest, c: DeploymentChange, actor: str) -> templates.Change:
+    comment = None
     if c.kind == ChangeKind.Submitted:
         noun = "cliente" if request.targets_total == 1 else "clientes"
-        text = f"{actor} la envió a {request.targets_total} {noun}. Queda pendiente de aplicar."
+        text, tone = f"{actor} la envió a {request.targets_total} {noun}. Queda pendiente de aplicar.", "warning"
     elif c.kind == ChangeKind.Approved:
-        text = f"{actor} la aprobó."
+        text, tone = f"{actor} la aprobó.", "success"
     elif c.kind == ChangeKind.Cancelled:
         reason = request.cancellation_reason
         text = f"{actor} la canceló" + ("." if not (reason or "").strip() else f": «{reason}».")
+        tone = "danger"
     else:
         text = f"{_client(request, c.target_id)}: {target_label(c.from_status)} → {target_label(c.to_status)} (por {actor})."
-    if c.kind == ChangeKind.TargetStatusChanged and (c.comment or "").strip():
-        text += f"\n    Comentario: {c.comment.strip()}"
-    return f"• {text}"
+        tone = _TARGET_TONES.get(c.to_status, "info")
+        if (c.comment or "").strip():
+            comment = c.comment.strip()
+    return templates.Change(text, tone, comment)
+
+
+def _format_line(item: templates.Change) -> str:
+    text = f"• {item.text}"
+    return text + (f"\n    Comentario: {item.comment}" if item.comment else "")
+
+
+def _html(request: NotifiedRequest, items: Sequence[templates.Change], link: str | None, to: NotifiedUser) -> str:
+    return templates.deployment_email(
+        to.name,
+        request.display_number,
+        (request.package_description or "").strip() or None,
+        (request.product_name or "").strip() or None,
+        request_label(request.status),
+        _REQUEST_TONES.get(request.status, "neutral"),
+        items,
+        link,
+        _reason(request, to),
+    )
 
 
 def _body(request: NotifiedRequest, lines: Sequence[str], link: str | None, to: NotifiedUser) -> str:
@@ -193,6 +222,29 @@ _TARGET_LABELS = {
     T.Cancelled: "Cancelado",
     T.Skipped: "Omitido",
     T.RolledBack: "Revertido",
+}
+
+
+_REQUEST_TONES = {
+    R.Draft: "neutral",
+    R.Pending: "warning",
+    R.Approved: "info",
+    R.InProgress: "info",
+    R.Completed: "success",
+    R.PartiallyCompleted: "warning",
+    R.Failed: "danger",
+    R.Cancelled: "danger",
+}
+
+_TARGET_TONES = {
+    T.Pending: "warning",
+    T.Scheduled: "info",
+    T.InProgress: "info",
+    T.Applied: "success",
+    T.Failed: "danger",
+    T.Cancelled: "danger",
+    T.Skipped: "neutral",
+    T.RolledBack: "warning",
 }
 
 

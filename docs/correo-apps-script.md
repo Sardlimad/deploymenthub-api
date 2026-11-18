@@ -17,7 +17,13 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents);
     if (data.secret !== SECRETO) return salida({ ok: false, error: "unauthorized" });
     if (!data.to || !data.subject) return salida({ ok: false, error: "bad request" });
-    MailApp.sendEmail({ to: data.to, subject: data.subject, body: data.body || "", name: "DeploymentHub" });
+    MailApp.sendEmail({
+      to: data.to,
+      subject: data.subject,
+      body: data.body || "",          // texto plano (respaldo)
+      htmlBody: data.html || undefined, // versión con diseño
+      name: "DeploymentHub",
+    });
     return salida({ ok: true });
   } catch (err) {
     return salida({ ok: false, error: String(err) });
@@ -37,7 +43,7 @@ function salida(obj) {
 3. **Implementar** y autoriza los permisos de Gmail (aviso «app no verificada» → Avanzado → Continuar).
 4. Copia la **URL de la aplicación web** (termina en `/exec`).
 
-Si cambias el código más tarde, crea una **nueva versión** de la implementación (la URL se mantiene).
+Si cambias el código más tarde (por ejemplo para activar el diseño HTML), usa **Implementar → Administrar implementaciones → ✏️ → Versión: Nueva versión → Implementar**. La URL se mantiene.
 
 ## 3. Configurar el backend (Render → Environment)
 

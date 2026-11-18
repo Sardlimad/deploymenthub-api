@@ -82,7 +82,7 @@ class DeploymentEmailQueue:
             ]
             emails = composer.compose(_to_notified(request), changes, users, self._settings.notifications_public_url)
             for e in emails:
-                self._email.send(e.to.email, e.subject, e.body)
+                self._email.send(e.to.email, e.subject, e.body, e.html)
             logger.info(
                 "Avisos de %s: %d cambio(s), %d correo(s).", request.display_number, len(changes), len(emails)
             )
