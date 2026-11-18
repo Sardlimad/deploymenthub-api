@@ -16,7 +16,7 @@ solo apunta `VITE_API_URL` a esta API.
 | Catálogos | Clientes, ambientes, productos, ambientes de producto, artefactos (versión general y personalizada por cliente), instalaciones y su estado de versión |
 | Despliegues | Paquetes (con bloqueo al enviarse y actualizaciones personalizadas), solicitudes, destinos por cliente, historial, resultado por artefacto, estado general calculado, reversión |
 | Tiempo real | Hub compatible con SignalR en `/hubs/deployments` (el cliente `@microsoft/signalr` del frontend se conecta tal cual) |
-| Correo | Código de recuperación y avisos de cambios (agrupados por solicitud y destinatario) por SMTP |
+| Correo | Código de recuperación y avisos de cambios (agrupados por solicitud y destinatario) por SMTP o webhook HTTPS |
 | KRUD | `GET /api/krud/asercion`: aserción ES256 firmada con la sesión (apagada si no hay clave) |
 | Errores | `ProblemDetails` (`application/problem+json`) con los mismos códigos: 400 validación, 401, 403, 404, 409 regla de negocio |
 
@@ -85,8 +85,11 @@ Importante en hosting gratuito:
 - **Un solo proceso** (no uses varios workers): el tiempo real, la cola de avisos y el límite de intentos viven en memoria.
 - Los planes gratuitos «duermen» el servicio tras un rato sin tráfico; la primera petición tarda unos segundos y los
   avisos en cola se pierden si el servicio se reinicia (el cambio ya quedó guardado).
-- Sin `EMAIL_HOST`/`EMAIL_FROM` no sale ningún correo (en `development` se escribe en el log). La recuperación de
-  contraseña los necesita; un ADMIN también puede definir la contraseña de un usuario desde Usuarios.
+- Render free **bloquea SMTP** (puertos 25/465/587): usa el webhook `EMAIL_WEBHOOK_URL` (gratis con Gmail y Google Apps
+  Script, sin dominio; guía en [docs/correo-apps-script.md](docs/correo-apps-script.md)). Si está definido, tiene
+  prioridad sobre SMTP.
+- Sin webhook ni `EMAIL_HOST`/`EMAIL_FROM` no sale ningún correo (en `development` se escribe en el log). La recuperación
+  de contraseña lo necesita; un ADMIN también puede definir la contraseña de un usuario desde Usuarios.
 
 ## Migrar datos desde el backend .NET
 

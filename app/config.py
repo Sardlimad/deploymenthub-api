@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     email_username: str = ""
     email_password: str = ""
     email_from: str = ""
+    # Alternativa a SMTP para hostings que lo bloquean (Render free): un webhook HTTPS (p. ej. Google Apps Script).
+    email_webhook_url: str = ""
+    email_webhook_secret: str = ""
 
     notifications_enabled: bool = True
     notifications_public_url: str = ""
@@ -60,6 +63,10 @@ class Settings(BaseSettings):
     @property
     def smtp_configured(self) -> bool:
         return bool(self.email_host.strip()) and bool(self.email_from.strip())
+
+    @property
+    def webhook_configured(self) -> bool:
+        return bool(self.email_webhook_url.strip())
 
     @property
     def krud_enabled(self) -> bool:
